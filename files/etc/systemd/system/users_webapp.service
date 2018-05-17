@@ -1,0 +1,13 @@
+[Unit]
+Description=Demo user management web app
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/users_webapp/
+ExecStart=/usr/bin/python main.py
+Restart=always
+RestartSec=2
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target

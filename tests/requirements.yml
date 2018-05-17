@@ -1,0 +1,5 @@
+---
+- name: devops.common
+  src: https://github.com/hmcts/common-role.git
+  scm: git
+  version: master

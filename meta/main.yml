@@ -1,0 +1,14 @@
+galaxy_info:
+  author: Reform DevOps
+  description: Password changer app installer
+  company: HMCTS Reform
+
+  license: MIT
+
+  min_ansible_version: 1.2
+
+  galaxy_tags: []
+
+dependencies:
+  #  - {role: "devops.repos"}
+  - {role: "devops.common" }

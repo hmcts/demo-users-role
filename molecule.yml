@@ -1,0 +1,27 @@
+---
+dependency:
+  name: galaxy
+  requirements_file: tests/requirements.yml
+driver:
+  name: docker
+docker:
+  containers:
+    - name: demo-users-role-test-${BRANCH_NAME}-${BUILD_NUMBER}
+      image: centos/systemd
+      image_version: latest
+      cap_add:
+        - SYS_ADMIN
+      build_image: yes
+      privileged: True
+      disable_cache: true
+      environment:
+        http_proxy: "http://reformmgmtproxyout.reform.hmcts.net:8080/"
+        https_proxy: "http://reformmgmtproxyout.reform.hmcts.net:8080/"
+        no_proxy: "localhost,127.0.0.0/8,127.0.0.1,127.0.0.1*,local.home,reform.hmcts.net,*.reform.hmcts.net"
+      # For local testing:
+      port_bindings:
+        5001: 5001
+ansible:
+  playbook: tests/playbook.yml
+verifier:
+  name: testinfra

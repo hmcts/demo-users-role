@@ -1,0 +1,9 @@
+---
+demo_users_role_htpasswd_file: "/opt/users_webapp/users.htpasswd"
+demo_users_role_password_expiry_days: 7
+demo_users_ldap_search_groups:
+  - myexamplegroup1
+  - myexamplegroup2
+demo_users_redacted_admin_group: myadmingroup1
+demo_users_ldap_url: "ldaps://ldap.example.com:636"
+demo_users_ldap_base_dn: "dc=example,dc=com"

@@ -1,0 +1,234 @@
+# -*- coding: utf-8 -*-
+"""
+IMPORTANT:
+as this is currently written, it is NOT intended to run multi process/threaded
+"""
+import json
+import os
+import random
+import string
+import time
+import traceback
+
+from flask import Flask, g, render_template, request, session, redirect, url_for, Response
+from functools import wraps
+from subprocess import call
+
+import htpasswd
+app = Flask(__name__)
+
+app.debug = True
+app_port = 5001
+user_storage_file = "user_store.json" # only for this app
+with open('settings.json') as settings_file:
+    settings = json.load(settings_file)
+htpasswd_file = settings['htpasswd_file'] # for nginx to use
+username_prefix = "user"
+password_expiry_days = int(settings['password_expiry_days'])
+password_expiry_seconds = password_expiry_days * 24 * 60 * 60
+
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_ldap_auth(auth.username, auth.password):
+            return authenticate()
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route('/', methods=['GET', 'POST'])
+@requires_auth
+def root():
+    """
+    / route - main form for adding users
+    """
+    additional_info = None
+    username = None
+    password = None
+    error = None
+
+    if request.method == 'POST':
+        # request.form['persons_name']
+        try:
+            username, password = add_new_user()
+        except Exception as exception:
+            print type(exception), str(exception)
+            print traceback.print_exc()
+            error = "Failed to add a user"
+
+    return render_template('index.html', error=error, additional_info=additional_info, username=username, password=password)
+
+
+@app.route('/expire_old_passwords', methods=['GET'])
+def expire_old_passwords():
+    """
+    Disables users with expired passwords
+    """
+    users = get_current_users()
+    disabled_users = 0
+    for user in users:
+        if user['enabled'] is False:
+            continue
+        if int(time.time()) > user['password_created'] + password_expiry_seconds:
+            user['enabled'] = False
+            disabled_users += 1
+    save_all_users(users)
+    update_htpasswd_file()
+    return "Disabled %s expired users/passwords" % disabled_users
+
+def authenticate():
+    """Sends a 401 response that enables basic auth"""
+
+    demo_users_redacted_admin_group = settings['demo_users_redacted_admin_group']
+
+    return Response(
+        'Could not verify your access level for that URL.\n'
+        'You have to login with proper credentials\n'
+        'Use LDAP auth and must be in %s group' % demo_users_redacted_admin_group, 401,
+        {'WWW-Authenticate': 'Basic realm="Login Required"'})
+
+def add_new_user():
+    """
+    Generates a new user and password and saves it
+    """
+    username = get_next_username()
+    password = generate_password()
+    save_user(username, password)
+    update_htpasswd_file()
+    return username, password
+
+
+def get_current_users():
+    """
+    Gets all current users and returns them
+    """
+    if os.path.exists(user_storage_file):
+        with open(user_storage_file) as input_file:
+            current_users = json.load(input_file)
+    else:
+        # no user file yet
+        current_users = []
+    return current_users
+
+
+def save_user(username, password):
+    """
+    Save/append a single user to the store
+    """
+    users = get_current_users()
+    unix_timestamp = int(time.time())
+
+    user = {
+        'username': username,
+        'password': password,
+        'password_created': unix_timestamp,
+        'enabled': True
+    }
+    users.append(user)
+    save_all_users(users)
+
+
+def save_all_users(users):
+    """
+    Save provided users object to the store
+    """
+    with open(user_storage_file, 'w') as output_file:
+        json.dump(users, output_file)
+
+
+def get_next_username():
+    """
+    Gets the next available username
+    Treating them as sequential, and assuming no users will be deleted, just disabled
+    """
+    current_users = get_current_users()
+    next_user_number = len(current_users) + 1
+    next_username = "%s%s" % (username_prefix, next_user_number)
+    return next_username
+
+
+def generate_password(min_password_length=8):
+    """
+    Generates a random password
+    - of at least min_password_length length
+    - including at least one of each:
+        lowercase
+        uppercase
+        number
+        special character
+    Uses SystemRandom (/dev/urandom)
+    """
+    rng = random.SystemRandom()
+
+    lowercase = string.lowercase # a-z
+    uppercase = string.uppercase # A-Z
+    numbers = string.digits # 0-9
+    special_chars = '''!$%^*()-=_+[]'''
+    all_types = lowercase + uppercase + numbers + special_chars
+
+    # get one of each type first to make sure we meet requirements
+    password = ""
+    password += lowercase[rng.randint(0, len(lowercase)-1)]
+    password += uppercase[rng.randint(0, len(uppercase)-1)]
+    password += numbers[rng.randint(0, len(numbers)-1)]
+    password += special_chars[rng.randint(0, len(special_chars)-1)]
+
+    # make up the rest of the password
+    while len(password) < min_password_length:
+        password += all_types[rng.randint(0, len(all_types)-1)]
+
+    return password
+
+
+def update_htpasswd_file():
+    """
+    Update the htpasswd file based on currently stored users
+    """
+    users = get_current_users()
+
+    if not os.path.exists(htpasswd_file):
+        with open(htpasswd_file, 'w') as _:
+            pass
+
+    with htpasswd.Basic(htpasswd_file, mode="md5") as htpasswd_file_handle:
+
+        for user in users:
+            if user['enabled']:
+                try:
+                    htpasswd_file_handle.add(user['username'], user['password'])
+                except htpasswd.basic.UserExists, e:
+                    # User already in the file so make sure password is correct
+                    htpasswd_file_handle.change_password(user['username'], user['password'])
+            if user['enabled'] is False:
+                try:
+                    htpasswd_file_handle.pop(user['username'])
+                except htpasswd.basic.UserNotExists, e:
+                    pass # User already removed
+
+def check_ldap_auth(username, password):
+    # sanitize input
+    username = username.replace("'", "'\''")
+    password = password.replace("'", "'\''")
+
+    ldap_timeout = "5"
+    # ldap_filter = "uid=%s" % username
+    demo_users_ldap_search_groups = settings['demo_users_ldap_search_groups']
+    demo_users_ldap_url = settings['demo_users_ldap_url']
+    demo_users_ldap_base_dn = settings['demo_users_ldap_base_dn']
+
+    ldap_filter = "(|%s)" % ( demo_users_ldap_search_groups )
+    command = """/usr/bin/ldapsearch -H %s -x -l "%s" -b '%s' -D 'uid=%s,ou=People,%s' '%s' -w '%s' | grep 'memberUid: %s' """ % (demo_users_ldap_url, ldap_timeout, demo_users_ldap_base_dn, username, demo_users_ldap_base_dn, ldap_filter, password, username)
+    return_code = call(command, shell=True)
+    if return_code is not 0:
+        return False
+    return True
+
+def main():
+    """
+    Start the app single threaded (on purpose)
+    """
+    update_htpasswd_file()
+    app.run(port=app_port, host="0.0.0.0")
+
+if __name__ == '__main__':
+    main()

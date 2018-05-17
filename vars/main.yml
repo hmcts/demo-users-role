@@ -1,0 +1,10 @@
+---
+# yum and pip packages vars - get passed through to common-role
+yum_packages:
+  - "openssl"
+  - "python-pip"
+  - "openldap-clients"
+
+pip_packages:
+  - "Flask"
+  - "htpasswd"

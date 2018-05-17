@@ -1,0 +1,39 @@
+---
+
+- name: "Copy over webapp static content"
+  copy:
+    src: "files/opt/users_webapp/"
+    dest: /opt/users_webapp/
+    owner: root
+    mode: 0644
+  notify:
+    - "restart webapp"
+
+- name: "Templated webapp main.py"
+  template:
+    src: "templates/opt/users_webapp/main.py.j2"
+    dest: /opt/users_webapp/main.py
+    owner: root
+    mode: 0644
+  notify: "restart webapp"
+
+- name: "Templated settings.json"
+  template:
+    src: "templates/opt/users_webapp/settings.json.j2"
+    dest: /opt/users_webapp/settings.json
+    owner: root
+    mode: 0644
+  notify: "restart webapp"
+
+- include: "service.yml"
+
+- include: "cron.yml"
+
+- meta: flush_handlers
+
+- name: "Check web service is up"
+  uri:
+    url: http://127.0.0.1:5001
+    status_code: 401
+  environment:
+    http_proxy: ""

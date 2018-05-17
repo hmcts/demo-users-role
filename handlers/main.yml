@@ -1,0 +1,5 @@
+---
+- name: "restart webapp"
+  service:
+    name: "users_webapp"
+    state: restarted

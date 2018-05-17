@@ -1,0 +1,13 @@
+---
+- name: "Copy web app service/unit file"
+  copy:
+    src: "{{ item }}"
+    dest: "/{{ item }}"
+  with_items:
+    - "etc/systemd/system/users_webapp.service"
+
+- name: "Enable web app service"
+  service:
+    name: "users_webapp"
+    enabled: yes
+    state: started

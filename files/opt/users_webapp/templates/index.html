@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="/static/bootstrap/3.3.7/css/bootstrap.min.css">
+
+</head>
+<body>
+<div class="container">
+
+<div class="panel panel-default">
+  <div class="panel-heading">Add new user</div>
+  <div class="panel-body">
+    <form class="form" method="post">
+    <input type="text" class="form-control" name="persons_name" placeholder="Persons name (doesn't get used)">
+    <input type="submit" class="form-control" value="Create user">
+    </form>
+  </div>
+</div>
+
+
+{% if error != None %}
+<div class="panel panel-danger">
+  <div class="panel-heading">Error</div>
+  <div class="panel-body">
+    {{ error }}
+  </div>
+</div>
+{% endif %}
+
+{% if additional_info != None %}
+{{ additional_info }}
+{% endif %}
+
+{% if username != None %}
+<div class="panel panel-success">
+  <div class="panel-heading">User created!</div>
+  <div class="panel-body">
+    <form>
+    Username<input class="form-control" readonly="true" type="text" value="{{ username }}">
+    Password<input class="form-control" readonly="true" type="text" value="{{ password }}">
+    </form>
+  </div>
+</div>
+{% endif %}
+
+</div><!-- container -->
+</body>
+</html>

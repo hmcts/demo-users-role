@@ -1,0 +1,7 @@
+---
+
+- name: "Set cron job to disable expired users"
+  cron:
+    name: "Disable expired users"
+    special_time: "hourly"
+    job: "/bin/curl http://localhost:5001/expire_old_passwords"

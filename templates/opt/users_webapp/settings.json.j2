@@ -1,0 +1,8 @@
+{
+  "htpasswd_file": "{{ demo_users_role_htpasswd_file }}",
+  "password_expiry_days": {{ demo_users_role_password_expiry_days }},
+  "demo_users_ldap_search_groups": "({{ demo_users_ldap_search_groups | join(')(cn=') }})",
+  "demo_users_redacted_admin_group": "{{ demo_users_redacted_admin_group }}",
+  "demo_users_ldap_url": "{{ demo_users_ldap_url }}",
+  "demo_users_ldap_base_dn": "{{ demo_users_ldap_base_dn }}"
+}
